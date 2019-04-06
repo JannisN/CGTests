@@ -123,7 +123,7 @@ namespace cg
 		Matrix<T, H, W> operator - (Matrix<F, H, W> m);
 		template <class F, unsigned int N>
 		Matrix<T, H, N> operator * (Matrix<F, W, N> m);
-		template <class F, typename = std::enable_if_t<W == 1>>
+		template <class F, typename = std::enable_if<W == 1>>
 		T operator * (Matrix<F, H, 1> m)
 		{
 			T t = (*this)[0] * m[0];
@@ -137,7 +137,7 @@ namespace cg
 		Matrix<T, H, W>& operator += (Matrix<F, H, W> m);
 		template <class F>
 		Matrix<T, H, W>& operator -= (Matrix<F, H, W> m);
-		template <class F, typename = std::enable_if_t<W == H>>
+		template <class F, typename = std::enable_if<W == H>>
 		Matrix<T, H, W>& operator *= (Matrix<F, H, W> m)
 		{
 			*this = *this * m;
@@ -219,7 +219,7 @@ namespace cg
 	inline DynamicMatrix<T>::DynamicMatrix(unsigned int height, unsigned int width, std::vector<T> data) : DynamicMatrix(height, width)
 	{
 		if (data.size() != height * width)
-			throw std::exception("Data size doesn't match matrix size");
+			throw std::runtime_error("Data size doesn't match matrix size");
 		else
 			content = data;
 	}
@@ -228,7 +228,7 @@ namespace cg
 	inline DynamicMatrix<T>::DynamicMatrix(std::tuple<unsigned int, unsigned int> size, std::vector<T> data) : DynamicMatrix(size)
 	{
 		if (data.size() != getTotalSize())
-			throw std::exception("Data size doesn't match matrix size");
+			throw std::runtime_error("Data size doesn't match matrix size");
 		else
 			content = data;
 	}
@@ -345,7 +345,7 @@ namespace cg
 	template <class T>
 	inline std::tuple<unsigned int, unsigned int> DynamicMatrix<T>::getSize()
 	{
-		return std::tuple(height, width);
+		return { height, width };
 	}
 
 	template <class T>
@@ -608,13 +608,13 @@ namespace cg
 	template<class T>
 	inline DynamicMatrix<T> DynamicMatrix<T>::transpose()
 	{
-		return math::transpose(*this);
+		return transpose(*this);
 	}
 
 	template<class T>
 	inline DynamicMatrix<T> DynamicMatrix<T>::adjoint()
 	{
-		return math::adjoint(*this);
+		return adjoint(*this);
 	}
 
 	template<class T>
@@ -717,11 +717,11 @@ namespace cg
 	inline Matrix<T, H, W>::Matrix(std::vector<std::vector<T>> data)
 	{
 		if (data.size() != H)
-			throw std::exception("Data size doesn't match matrix size");
+			throw std::runtime_error("Data size doesn't match matrix size");
 		for (unsigned int i = 0; i < H; i++)
 		{
 			if (data[i].size() != W)
-				throw std::exception("Data size doesn't match matrix size");
+				throw std::runtime_error("Data size doesn't match matrix size");
 			for (unsigned int j = 0; j < W; j++)
 			{
 				content[i * W + j] = data[i][j];
@@ -733,7 +733,7 @@ namespace cg
 	inline Matrix<T, H, W>::Matrix(std::vector<T> data)
 	{
 		if (data.size() != H * W)
-			throw std::exception("Data size doesn't match matrix size");
+			throw std::runtime_error("Data size doesn't match matrix size");
 		for (unsigned int i = 0; i < H * W; i++)
 		{
 			content[i] = data[i];
@@ -785,7 +785,7 @@ namespace cg
 	{
 		auto[y, x] = m.getSize();
 		if (y != H || x != W)
-			throw std::exception("Matrix sizes not compatible");
+			throw std::runtime_error("Matrix sizes not compatible");
 		else
 		{
 			for (int i = 0; i < H * W; i++)
@@ -805,7 +805,7 @@ namespace cg
 	template<class T, unsigned int H, unsigned int W>
 	inline Matrix<T, H, W>::operator DynamicMatrix<T>() const
 	{
-		return DynamicMatrix<T>(H, W, std::vector<T>(content.begin(), content.end()))
+		return DynamicMatrix<T>(H, W, std::vector<T>(content.begin(), content.end()));
 	}
 
 	template<class T, unsigned int H, unsigned int W>
@@ -911,7 +911,7 @@ namespace cg
 	inline Matrix<T, H, W> Matrix<T, H, W>::operator + (T f)
 	{
 		Matrix<T, H, W> matrix = *this;
-		for (int i = 0; i < constexpr (std::min)(H, W); i++)
+		for (int i = 0; i < (std::min)(H, W); i++)
 		{
 			matrix(i, i) += f;
 		}
@@ -922,7 +922,7 @@ namespace cg
 	inline Matrix<T, H, W> Matrix<T, H, W>::operator - (T f)
 	{
 		Matrix<T, H, W> matrix = *this;
-		for (int i = 0; i < constexpr (std::min)(H, W); i++)
+		for (int i = 0; i < (std::min)(H, W); i++)
 		{
 			matrix(i, i) -= f;
 		}
@@ -995,13 +995,13 @@ namespace cg
 	template<class T, unsigned int H, unsigned int W>
 	inline Matrix<T, W, H> Matrix<T, H, W>::transpose()
 	{
-		return math::transpose(*this);
+		return transpose(*this);
 	}
 
 	template<class T, unsigned int H, unsigned int W>
 	inline Matrix<T, W, H> Matrix<T, H, W>::adjoint()
 	{
-		return math::adjoint(*this);
+		return adjoint(*this);
 	}
 
 	template<class T, unsigned int H, unsigned int W>
@@ -1025,7 +1025,7 @@ namespace cg
 	template<class T, unsigned int H, unsigned int W>
 	Matrix<T, W, H> transpose(Matrix<T, H, W> m)
 	{
-		Matrix<Complex<T>, W, H> matrix;
+		Matrix<std::complex<T>, W, H> matrix;
 		for (int i = 0; i < W; i++)
 		{
 			for (int j = 0; j < H; j++)

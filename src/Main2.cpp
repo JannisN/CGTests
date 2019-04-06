@@ -54,7 +54,7 @@ std::tuple<double, RayTraceObject*, Vector<double, 3>> getClosestObject(std::vec
 	Vector<double, 3> normal;
 	for (auto e : list)
 	{
-		if (std::get<0>(e) < distance && std::get<0>(e) > 0 || distance < 0)
+		if ((std::get<0>(e) < distance && std::get<0>(e) > 0) || distance < 0)
 		{
 			distance = std::get<0>(e);
 			closest = std::get<1>(e);
@@ -70,7 +70,7 @@ std::tuple<double, RayTraceObject*, Vector<double, 3>> getClosestObject(std::vec
 template <class T, unsigned int N>
 Vector<T, N> normalize(Vector<T, N> vec)
 {
-	return vec / std::sqrt(vec * vec);
+	return vec / ::sqrt(vec * vec);
 }
 
 std::tuple<double, RayTraceObject*, Vector<double, 3>> trace(Vector<double, 3> origin, Vector<double, 3> direction, std::vector<RayTraceObject*> scene)
@@ -197,35 +197,25 @@ std::tuple<double, double, double> hsvToRgb(double h, double s, double v)
 	{
 	case 0:
 	case 6:
-		return std::tuple(v, t, p);
+		return { v, t, p };
 	case 1:
-		return std::tuple(q, v, p);
+		return { q, v, p };
 	case 2:
-		return std::tuple(p, v, t);
+		return { p, v, t };
 	case 3:
-		return std::tuple(p, q, v);
+		return { p, q, v };
 	case 4:
-		return std::tuple(t, p, v);
+		return { t, p, v };
 	case 5:
-		return std::tuple(v, p, q);
+		return { v, p, q };
 	}
 	return {};
 }
 
-
 int main()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
-
-	for (int i = 0; i < 1000; i++)
-	{
-		for (int j = 0; j < 1000; j++)
-		{
-			bitmap.getData()[(i * 1000 + j) * 3] = 100;
-			bitmap.getData()[(i * 1000 + j) * 3 + 1] = 149;
-			bitmap.getData()[(i * 1000 + j) * 3 + 2] = 237;
-		}
-	}
+	bitmap.fill({ 100, 149, 237 });
 
 	bitmap = raytrace();
 	bitmap.saveToPPM("test.ppm");

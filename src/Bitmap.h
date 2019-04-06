@@ -24,6 +24,9 @@ namespace cg
 		void setLayerCount(unsigned int count);
 		T& operator () (unsigned int x, unsigned int y, unsigned int layer);
 		T* getData();
+		void set(unsigned int x, unsigned int y, std::vector<T> color);
+        std::vector<T> get(unsigned int x, unsigned int y);
+        void fill(std::vector<T> color);
 
 		void renderTriangle(Vector<int, 2> a, Vector<int, 2> b, Vector<int, 2> c, std::vector<T> values);
 		void saveToPPM(std::string filename);
@@ -100,7 +103,7 @@ namespace cg
 	inline T& Bitmap<T>::operator () (unsigned int x, unsigned int y, unsigned int layer)
 	{
 		if (width <= x || height <= y || layerCount <= layer)
-			throw std::exception("Coordinates out of bound");
+			throw std::runtime_error("Coordinates out of bound");
 		return ptr[(x + width * y) * layerCount + layer];
 	}
 
@@ -110,21 +113,58 @@ namespace cg
 		return ptr;
 	}
 
+    template<class T>
+    void Bitmap<T>::set(unsigned int x, unsigned int y, std::vector<T> color)
+    {
+        if (color.size() != layerCount)
+            throw std::runtime_error("Color size doesn't match layer count");
+        int index = (y * width + x) * layerCount;
+        for (int i = 0; i < layerCount; i++)
+        {
+            data[i + index] = color[i];
+        }
+    }
+
+    template<class T>
+    std::vector<T> Bitmap<T>::get(unsigned int x, unsigned int y)
+    {
+        std::vector<T> color;
+        int index = (y * width + x) * layerCount;
+        for (int i = 0; i < layerCount; i++)
+        {
+            color[i] = data[i + index];
+        }
+    }
+
+    template<class T>
+    void Bitmap<T>::fill(std::vector<T> color)
+    {
+        if (color.size() != layerCount)
+            throw std::runtime_error("Color size doesn't match layer count");
+        for (long i = 0; i < width * height; i++)
+        {
+            for (int i = 0; i < layerCount; i++)
+            {
+                data[i * layerCount + i] = color[i];
+            }
+        }
+    }
+
 	template<class T>
 	inline void Bitmap<T>::renderTriangle(Vector<int, 2> a, Vector<int, 2> b, Vector<int, 2> c, std::vector<T> values)
 	{
 		if (getLayerCount() != values.size())
-			throw std::exception("Values size doesn't match bitmap size");
+			throw std::runtime_error("Values size doesn't match bitmap size");
 		auto[width, height] = getSize();
 		std::vector<std::tuple<int, int>> points;
-		points.push_back(std::tuple(a[0], a[1]));
-		points.push_back(std::tuple(b[0], b[1]));
-		points.push_back(std::tuple(c[0], c[1]));
+		points.push_back({ a[0], a[1] });
+		points.push_back({ b[0], b[1] });
+		points.push_back({ c[0], c[1] });
 		std::sort(points.begin(), points.end(), [](const std::tuple<int, int>& a, const std::tuple<int, int>& b) { return std::get<1>(a) < std::get<1>(b); });
 		double coef;
 		if (std::get<1>(points[0]) - std::get<1>(points[2]) != 0)
 			coef = (std::get<1>(points[1]) - std::get<1>(points[0])) / (double)(std::get<1>(points[0]) - std::get<1>(points[2]));
-		std::tuple<int, int> middle = std::tuple(coef * (std::get<0>(points[2]) - std::get<0>(points[0])) + std::get<0>(points[2]), std::get<1>(points[1]));
+		std::tuple<int, int> middle = { coef * (std::get<0>(points[2]) - std::get<0>(points[0])) + std::get<0>(points[2]), std::get<1>(points[1]) };
 		for (int i = (std::max)(std::get<1>(points[0]), 0); i <= (std::min)(std::get<1>(points[1]), (int)height); i++)
 		{
 			int widthCriterion;
