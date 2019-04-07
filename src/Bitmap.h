@@ -235,13 +235,13 @@ namespace cg
 	inline void Bitmap<T>::saveAsPPM(std::string filename)
 	{
 		std::ofstream file;
-		file.open(filename, std::ios::binary);
+		file.open(filename);
 		file << "P3\n";
 		file << width << " " << height << "\n";
 		file << std::pow(2, sizeof(T) * 8) << "\n";
 		for (auto e : data)
 		{
-			file << e << " ";
+            file << std::to_string(e) << " ";
 		}
 	}
 

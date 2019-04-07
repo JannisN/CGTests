@@ -210,7 +210,7 @@ int main()
 	bitmap.fill({ 100, 149, 237 });
 
 	bitmap = raytrace();
-	bitmap.saveAsPPM("test.ppm");
+	//bitmap.saveAsPPM("test.ppm");
 	bitmap.saveAsBMP("test.bmp");
 	
 	return 0;
