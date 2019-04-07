@@ -13,6 +13,8 @@ namespace cg
 	template <class T>
 	void insertBinaryDataInverse(std::vector<unsigned char> &data, T t, int pos);
 
+	std::vector<std::string> split(const std::string& s, char delim);
+
 	// impl ---------------------------------
 
 	template<class T>
