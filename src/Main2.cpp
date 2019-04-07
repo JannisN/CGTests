@@ -108,15 +108,7 @@ double getAOLine(double max, Vector<double, 3> normal, Vector<double, 3> pos, st
 Bitmap<unsigned char> raytrace()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
-	for (int i = 0; i < 1000; i++)
-	{
-		for (int j = 0; j < 1000; j++)
-		{
-			bitmap.getData()[(i * 1000 + j) * 3] = 100;
-			bitmap.getData()[(i * 1000 + j) * 3 + 1] = 149;
-			bitmap.getData()[(i * 1000 + j) * 3 + 2] = 237;
-		}
-	}
+	bitmap.fill({ 100, 149, 237 });
 
 	TestPlane plane;
 	plane.color = { 240, 240, 240 };
@@ -218,7 +210,8 @@ int main()
 	bitmap.fill({ 100, 149, 237 });
 
 	bitmap = raytrace();
-	bitmap.saveToPPM("test.ppm");
+	bitmap.saveAsPPM("test.ppm");
+	bitmap.saveAsBMP("test.bmp");
 	
 	return 0;
 }

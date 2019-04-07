@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Matrix.h"
+#include "Utils.h"
 
 #include <vector>
 #include <tuple>
@@ -29,12 +30,12 @@ namespace cg
         void fill(std::vector<T> color);
 
 		void renderTriangle(Vector<int, 2> a, Vector<int, 2> b, Vector<int, 2> c, std::vector<T> values);
-		void saveToPPM(std::string filename);
+		void saveAsPPM(std::string filename);
+		void saveAsBMP(std::string filename);
 	private:
 		unsigned int width, height;
 		unsigned int layerCount;
 		std::vector<T> data;
-		T* ptr;
 	};
 
 	template<class T>
@@ -49,7 +50,6 @@ namespace cg
 		this->height = height;
 		this->layerCount = layerCount;
 		data.resize(width * height * layerCount);
-		ptr = data.data();
 	}
 
 	template<class T>
@@ -60,7 +60,6 @@ namespace cg
 		height = h;
 		layerCount = bitmap.getLayerCount();
 		data = bitmap.data;
-		ptr = data.data();
 		return *this;
 	}
 
@@ -76,7 +75,6 @@ namespace cg
 		this->width = width;
 		this->height = height;
 		data.resize(width * height * layerCount);
-		ptr = data.data();
 	}
 
 	template<class T>
@@ -96,7 +94,6 @@ namespace cg
 	{
 		layerCount = count;
 		data.resize(width * height * layerCount);
-		ptr = data.data();
 	}
 
 	template<class T>
@@ -104,13 +101,13 @@ namespace cg
 	{
 		if (width <= x || height <= y || layerCount <= layer)
 			throw std::runtime_error("Coordinates out of bound");
-		return ptr[(x + width * y) * layerCount + layer];
+		return data[(x + width * y) * layerCount + layer];
 	}
 
 	template<class T>
 	inline T* Bitmap<T>::getData()
 	{
-		return ptr;
+		return data.data();
 	}
 
     template<class T>
@@ -143,9 +140,9 @@ namespace cg
             throw std::runtime_error("Color size doesn't match layer count");
         for (long i = 0; i < width * height; i++)
         {
-            for (int i = 0; i < layerCount; i++)
+            for (int j = 0; j < layerCount; j++)
             {
-                data[i * layerCount + i] = color[i];
+                data[i * layerCount + j] = color[j];
             }
         }
     }
@@ -235,16 +232,65 @@ namespace cg
 	}
 
 	template<class T>
-	inline void Bitmap<T>::saveToPPM(std::string filename)
+	inline void Bitmap<T>::saveAsPPM(std::string filename)
 	{
 		std::ofstream file;
-		file.open(filename);
+		file.open(filename, std::ios::binary);
 		file << "P3\n";
 		file << width << " " << height << "\n";
 		file << std::pow(2, sizeof(T) * 8) << "\n";
 		for (auto e : data)
 		{
-			file << std::to_string(e) << " ";
+			file << e << " ";
 		}
+	}
+
+	template<class T>
+	inline void Bitmap<T>::saveAsBMP(std::string filename)
+	{
+		std::vector<unsigned char> fileHeader(54);
+		fileHeader[0] = 'B';
+		fileHeader[1] = 'M';
+		//insertBinaryData(fileHeader, totalSize, 2); // total file size, calculated later
+		insertBinaryDataInverse(fileHeader, 0, 6); // application specific
+		insertBinaryDataInverse(fileHeader, fileHeader.size(), 10, 4); // total header size
+
+		insertBinaryDataInverse(fileHeader, 40, 14); // size of infoHeader
+		insertBinaryDataInverse(fileHeader, width, 18); // width
+		insertBinaryDataInverse(fileHeader, -height, 22); // height, negative because bmp...
+		insertBinaryDataInverse(fileHeader, 1, 26, 2); // unused
+		insertBinaryDataInverse(fileHeader, sizeof(T) * 8 * layerCount, 28, 2); // color depth, 1, 4, 8, 16, 24 or 32
+		insertBinaryDataInverse(fileHeader, 0, 30); // compression
+		insertBinaryDataInverse(fileHeader, 0, 34); // size of image or 0(if compression = 0)
+		insertBinaryDataInverse(fileHeader, 0, 38); // pixel per meter, width
+		insertBinaryDataInverse(fileHeader, 0, 42); // pixel per meter, height
+		insertBinaryDataInverse(fileHeader, 0, 46); // no color table
+		insertBinaryDataInverse(fileHeader, 0, 50); // no color table
+
+		std::vector<unsigned char> imageSource;
+		int zeroBytes = (4 - (width * layerCount * sizeof(T)) % 4) % 4;
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				for (int k = layerCount - 1; k >= 0; k--)
+				{
+					imageSource.push_back((*this)(j, i, k));
+				}
+			}
+			for (int j = 0; j < zeroBytes; j++)
+			{
+				imageSource.push_back(0);
+			}
+		}
+
+		insertBinaryDataInverse(fileHeader, fileHeader.size() + imageSource.size(), 2, 4); // total file size
+
+		std::vector<unsigned char> totalImage = fileHeader;
+		totalImage.insert(totalImage.end(), imageSource.begin(), imageSource.end());
+
+		std::ofstream file;
+		file.open(filename, std::ios::binary);
+		file.write(reinterpret_cast<const char*>(&totalImage[0]), totalImage.size() * sizeof(T));
 	}
 }
