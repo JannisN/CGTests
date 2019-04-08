@@ -7,6 +7,8 @@ set(OpenCLInclude "" CACHE FILEPATH "OpenCL include directory")
 if(WIN32)
 	set(OpenCLLib64 "" CACHE FILEPATH "OpenCL .lib 64")
 	set(OpenCLLib32 "" CACHE FILEPATH "OpenCL .lib 32")
+else()
+    set(OpenCLLib "" CACHE FILEPATH "OpenCL .lib")
 endif()
 
 set(Includes
@@ -23,6 +25,9 @@ if(WIN32)
 		set(LibrariesRelease "${LibrariesRelease}" "${OpenCLLib32}")
 		set(LibrariesDebug "${LibrariesDebug}" "${OpenCLLib32}")
 	endif()
+else()
+    set(LibrariesRelease "${LibrariesRelease}" "${OpenCLLib}")
+    set(LibrariesDebug "${LibrariesDebug}" "${OpenCLLib}")
 endif()
 
 file(GLOB_RECURSE src
