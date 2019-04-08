@@ -7,7 +7,6 @@
 #include "CL/cl.hpp"
 
 std::string source =
-//__attribute__((reqd_work_group_size(X, Y, Z)))
 "__kernel void HelloWorld(__global char* data)\n"
 "{											  \n"
 "	data[0] = 'H';							  \n"
@@ -27,12 +26,20 @@ std::string source =
 ;
 
 std::string source2 =
+//__attribute__((reqd_work_group_size(X, Y, Z)))
 "__kernel void Add(__global const float* a, __global const float* b, uint size, __global float* c)"
 "{"
-"	int id = get_global_id(0);"
+"	int idg0 = get_global_id(0);"
+"	int idg1 = get_global_id(1);"
+"	int idg2 = get_global_id(2);"
+"	int idl0 = get_local_id(0);"
+"	int idl1 = get_local_id(1);"
+"	int idl2 = get_local_id(2);"
+//"	int idy = get_local_id(1);"
+//"	int idz = get_local_id(2);"
 //"	if (id < size)"
 "	{"
-"		c[id] = a[id] + b[id] + id + 1;"
+"		c[get_global_size(1) * get_global_size(0) * idg2 + get_global_size(0) * idg1 + idg0] = idl0;"
 "	}"
 "}"
 ;
@@ -147,9 +154,9 @@ int main()
 	std::vector<float> bufferA(2048);
 	std::vector<float> bufferB(2048);
 	std::vector<float> bufferC(2048);
-	cl::Buffer mbA(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, 2048);
-	cl::Buffer mbB(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, 2048);
-	cl::Buffer mbC(context, CL_MEM_HOST_READ_ONLY | CL_MEM_WRITE_ONLY, 2048);
+	cl::Buffer mbA(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, bufferA.size() * sizeof(float));
+	cl::Buffer mbB(context, CL_MEM_HOST_WRITE_ONLY | CL_MEM_READ_ONLY, bufferB.size() * sizeof(float));
+	cl::Buffer mbC(context, CL_MEM_HOST_READ_ONLY | CL_MEM_WRITE_ONLY, bufferC.size() * sizeof(float));
 
 	int error2;
 	cl::Kernel kernel2(program2, "Add", &error2);
@@ -176,13 +183,12 @@ int main()
 	//const cl::NDRange localWorkSize[] = { 256, 4, 1 };
 	//queue.enqueueNDRangeKernel(kernel2, 3, 0, globalWorkSizeSet[0], localWorkSize);
 	cl::Event event;
-	cl::NDRange globalSize(2048);
-	cl::NDRange localSize(1024, 1, 1);
-	int error3 = queue.enqueueNDRangeKernel(kernel2, cl::NDRange(), globalSize);
-	error3 = queue.enqueueNDRangeKernel(kernel2, 512, globalSize);
+	//cl::NDRange globalSize(bufferC.size());
+	cl::NDRange globalSize(256, 4, 2);
+	cl::NDRange localSize(16, 4, 1);
+	int error3 = queue.enqueueNDRangeKernel(kernel2, 0, globalSize, localSize);
 	// nullptr für auf keine events warten
-	queue.enqueueReadBuffer(mbC, true, 0, bufferC.size(), bufferC.data(), nullptr, &event);
-	event.wait();
+	error3 = queue.enqueueReadBuffer(mbC, true, 0, bufferC.size() * sizeof(float), bufferC.data());
 	//std::cout << std::string(bufferC.data(), bufferC.size());
 
 	return 0;
