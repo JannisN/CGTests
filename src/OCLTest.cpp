@@ -1,10 +1,16 @@
-#define __CL_ENABLE_EXCEPTIONS 
+#define __CL_ENABLE_EXCEPTIONS
+
+#ifdef WIN32
+	#define GLFW_EXPOSE_NATIVE_WGL
+#endif
 
 #include <iostream>
 
 #include "Utils.h"
 
 #include "CL/cl.hpp"
+#include "GLFW/glfw3.h"
+#include "GLFW/glfw3native.h"
 
 std::string source =
 "__kernel void HelloWorld(__global char* data)\n"
@@ -42,6 +48,15 @@ std::string source2 =
 "		c[get_global_size(1) * get_global_size(0) * idg2 + get_global_size(0) * idg1 + idg0] = idl0;"
 "	}"
 "}"
+;
+
+std::string source3 =
+"__kernel void Draw(__write_only image2d_t image)									  "
+"{																					  "
+"	int x = get_global_id(0);														  "
+"	int y = get_global_id(1);														  "
+"	write_imagef(image, (int2)(x, y), (float4)(x / 256.0f, y / 256.0f, 1.0f, 1.0f));  "
+"}																					  "
 ;
 
 int main()
@@ -189,7 +204,93 @@ int main()
 	int error3 = queue.enqueueNDRangeKernel(kernel2, 0, globalSize, localSize);
 	// nullptr für auf keine events warten
 	error3 = queue.enqueueReadBuffer(mbC, true, 0, bufferC.size() * sizeof(float), bufferC.data());
-	//std::cout << std::string(bufferC.data(), bufferC.size());
+	
+	// program3-------------------------------------------------------------------------------------------
+
+	// glfw init -----------------------
+	GLFWwindow* window;
+	int error4 = glfwInit();
+	window = glfwCreateWindow(640, 480, "Hello World", 0, 0);
+	glfwMakeContextCurrent(window);
+
+	// opengl texture ---------------
+	glEnable(GL_TEXTURE_2D);
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	
+	// opencl -------------------------------------------------------------------
+	cl_context_properties props[] =
+	{
+		CL_CONTEXT_PLATFORM,
+		(cl_context_properties)platform(),
+#ifdef WIN32
+		CL_GL_CONTEXT_KHR,
+		(cl_context_properties)wglGetCurrentContext(),
+		CL_WGL_HDC_KHR,
+		(cl_context_properties)wglGetCurrentDC(),
+#endif
+		0
+	};
+	cl_int error5;
+	cl::Context context3(device, props, 0, 0, &error5);
+
+	cl::CommandQueue queue3(context3, device);
+
+	cl::ImageGL image(context3, CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, texture, &error4);
+
+	cl::Program::Sources sources3(1, { source3.c_str(), source3.length() }); // + 1 weggenommen
+	cl::Program program3(context3, sources3);
+
+	if (program3.build("-cl-std=CL1.2"))
+	{
+		std::string log;
+		program2.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &log);
+		std::cout << log;
+	}
+
+	cl::Kernel kernel3(program3, "Draw", &error5);
+
+	std::vector<cl::Memory> images = { image };
+	error5 = queue3.enqueueAcquireGLObjects(&images);
+
+	error5 = kernel3.setArg(0, image);
+
+	cl::NDRange globalSize3(256, 256);
+	cl::NDRange localSize3(32, 32);
+	error4 = queue3.enqueueNDRangeKernel(kernel3, 0, globalSize3, localSize3);
+
+	queue3.enqueueReleaseGLObjects(&images);
+	//queue3.finish();//vlt nicht nötig
+
+	// glfw window main loop --------------------
+	while (!glfwWindowShouldClose(window))
+	{
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		glBindTexture(GL_TEXTURE_2D, texture);
+
+		glBegin(GL_QUADS);
+			glTexCoord2i(0, 1);
+			glVertex3f(-1.0f, 1.0f, 0.0f);
+			glTexCoord2i(1, 1);
+			glVertex3f(1.0f, 1.0f, 0.0f);
+			glTexCoord2i(1, 0);
+			glVertex3f(1.0f, -1.0f, 0.0f);
+			glTexCoord2i(0, 0);
+			glVertex3f(-1.0f, -1.0f, 0.0f);
+		glEnd();
+		//glFinish();//vlt nicht nötig;
+
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+	}
+
+	// glfw de-init --------------------------------
+	glfwTerminate();
 
 	return 0;
 }

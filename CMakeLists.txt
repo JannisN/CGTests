@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.8)
 project(CGTests)
 set(CMAKE_CXX_STANDARD 17)
 
+add_subdirectory("extern/glfw")
+
+find_package(OpenGL)
+
 set(OpenCLInclude "" CACHE FILEPATH "OpenCL include directory")
 if(WIN32)
 	set(OpenCLLib64 "" CACHE FILEPATH "OpenCL .lib 64")
@@ -13,9 +17,16 @@ endif()
 
 set(Includes
 	"${OpenCLInclude}"
+	"extern/glfw/include"
 )
-set(LibrariesRelease)
-set(LibrariesDebug)
+set(LibrariesRelease
+	"${CMAKE_BINARY_DIR}/extern/glfw/src/release/glfw3.lib"
+	"${OPENGL_gl_LIBRARY}"
+)
+set(LibrariesDebug
+	"${CMAKE_BINARY_DIR}/extern/glfw/src/debug/glfw3.lib"
+	"${OPENGL_gl_LIBRARY}"
+)
 
 if(WIN32)
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
