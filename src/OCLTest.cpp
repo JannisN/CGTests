@@ -3,6 +3,9 @@
 #ifdef WIN32
 	#define GLFW_EXPOSE_NATIVE_WGL
 #endif
+#ifdef __linux__
+    #define GLFW_EXPOSE_NATIVE_X11
+#endif
 
 #include <iostream>
 
@@ -11,6 +14,11 @@
 #include "CL/cl.hpp"
 #include "GLFW/glfw3.h"
 #include "GLFW/glfw3native.h"
+
+#ifdef __APPLE__
+    #include <OpenGL/CGLDevice.h>
+    #include <OpenGL/CGLCurrent.h>
+#endif
 
 std::string source =
 "__kernel void HelloWorld(__global char* data)\n"
@@ -121,7 +129,7 @@ int main()
 	auto platform = platforms.front();
 	auto device = devices.front();
 
-	cl::Program::Sources sources(1, { source.c_str(), source.length() + 1 }); // + 1 nötig?
+	cl::Program::Sources sources(1, { source.c_str(), source.length() + 1 }); // + 1 nï¿½tig?
 	cl::Context context(device);
 	cl::Program program(context, sources);
 
@@ -155,7 +163,7 @@ int main()
 
 	// program2 -------------------
 
-	cl::Program::Sources sources2(1, { source2.c_str(), source2.length() + 1 }); // + 1 nötig?
+	cl::Program::Sources sources2(1, { source2.c_str(), source2.length() + 1 }); // + 1 nï¿½tig?
 	cl::Program program2(context, sources2);
 
 	if (program2.build("-cl-std=CL1.2"))
@@ -202,7 +210,7 @@ int main()
 	cl::NDRange globalSize(256, 4, 2);
 	cl::NDRange localSize(16, 4, 1);
 	int error3 = queue.enqueueNDRangeKernel(kernel2, 0, globalSize, localSize);
-	// nullptr für auf keine events warten
+	// nullptr fï¿½r auf keine events warten
 	error3 = queue.enqueueReadBuffer(mbC, true, 0, bufferC.size() * sizeof(float), bufferC.data());
 	
 	// program3-------------------------------------------------------------------------------------------
@@ -221,17 +229,22 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	
+    
 	// opencl -------------------------------------------------------------------
 	cl_context_properties props[] =
 	{
-		CL_CONTEXT_PLATFORM,
-		(cl_context_properties)platform(),
 #ifdef WIN32
-		CL_GL_CONTEXT_KHR,
-		(cl_context_properties)wglGetCurrentContext(),
-		CL_WGL_HDC_KHR,
-		(cl_context_properties)wglGetCurrentDC(),
+		CL_CONTEXT_PLATFORM, (cl_context_properties)platform(),
+        CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
+        CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
+#endif
+#ifdef __APPLE__
+        CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, (cl_context_properties) CGLGetShareGroup(CGLGetCurrentContext()),
+#endif
+#ifdef __linux__
+        CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
+        CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
 #endif
 		0
 	};
@@ -259,12 +272,12 @@ int main()
 
 	error5 = kernel3.setArg(0, image);
 
-	cl::NDRange globalSize3(256, 256);
-	cl::NDRange localSize3(32, 32);
+	cl::NDRange globalSize3(256, 256, 1);
+	cl::NDRange localSize3(16, 16, 1);
 	error4 = queue3.enqueueNDRangeKernel(kernel3, 0, globalSize3, localSize3);
 
 	queue3.enqueueReleaseGLObjects(&images);
-	//queue3.finish();//vlt nicht nötig
+	//queue3.finish();//vlt nicht nï¿½tig
 
 	// glfw window main loop --------------------
 	while (!glfwWindowShouldClose(window))
@@ -283,7 +296,7 @@ int main()
 			glTexCoord2i(0, 0);
 			glVertex3f(-1.0f, -1.0f, 0.0f);
 		glEnd();
-		//glFinish();//vlt nicht nötig;
+		//glFinish();//vlt nicht nï¿½tig;
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
