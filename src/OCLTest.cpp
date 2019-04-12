@@ -67,7 +67,7 @@ std::string source3 =
 "}																					  "
 ;
 
-int main()
+int main2()
 {
 	std::vector<cl::Platform> platforms;
 	cl::Platform::get(&platforms);

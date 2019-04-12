@@ -3,10 +3,19 @@
 
 using namespace cg;
 
+template <class T, unsigned int N>
+Vector<T, N> normalize(Vector<T, N> vec)
+{
+	return vec / (::sqrt(vec * vec) + 0.00001);
+}
+
 class RayTraceObject
 {
 public:
 	virtual std::vector<std::tuple<double, RayTraceObject*, Vector<double, 3>>> getDistance(Vector<double, 3> origin, Vector<double, 3> direction) { return {}; };
+	// vlt könnte man hier noch zusätzlich die grösse des objekts dazugeben, dass kleine objekte keinen extremen schatten machen
+	// plus vlt noch die dichte der umgebung dazuberechnen, dass viele kleine elemente trotzem grösseren schatten machen
+	virtual Vector<double, 3> getDistance(Vector<double, 3> point) { return {}; };
 	Vector<unsigned char, 3> color;
 };
 
@@ -19,6 +28,14 @@ public:
 		if (direction(1) != 0)
 			list.push_back({ -(origin(1) / direction(1)), this, {0.0, 1.0, 0.0} });
 		return list;
+	};
+
+	Vector<double, 3> getDistance(Vector<double, 3> point)
+	{
+		if (point(1) * point(1) > 0.000000001)
+			return { 0, point(1), 0 };
+		else
+			return { 10, 10, 10 };
 	};
 };
 
@@ -45,6 +62,16 @@ public:
 
 		return list;
 	};
+
+	Vector<double, 3> getDistance(Vector<double, 3> point)
+	{
+		Vector<double, 3> value = (point - pos) - normalize(point - pos) * size;
+
+		if (value * value > 0.00000001)
+			return value;
+		else
+			return { 10, 10, 10 };
+	};
 };
 
 std::tuple<double, RayTraceObject*, Vector<double, 3>> getClosestObject(std::vector<std::tuple<double, RayTraceObject*, Vector<double, 3>>> list)
@@ -67,11 +94,6 @@ std::tuple<double, RayTraceObject*, Vector<double, 3>> getClosestObject(std::vec
 		return { distance, nullptr, normal };
 }
 
-template <class T, unsigned int N>
-Vector<T, N> normalize(Vector<T, N> vec)
-{
-	return vec / ::sqrt(vec * vec);
-}
 
 std::tuple<double, RayTraceObject*, Vector<double, 3>> trace(Vector<double, 3> origin, Vector<double, 3> direction, std::vector<RayTraceObject*> scene)
 {
@@ -105,28 +127,66 @@ double getAOLine(double max, Vector<double, 3> normal, Vector<double, 3> pos, st
 	return realDistance;
 }
 
+//double getAONormal(RayTraceObject* object, Vector<double, 3> normal, Vector<double, 3> point)
+//{
+//	auto vec = object->getDistance(point);
+//	return -normal * vec;
+//}
+
+std::tuple<double, Vector<double, 3>> getMaxAO(std::vector<RayTraceObject*> scene, Vector<double, 3> normal, Vector<double, 3> point)
+{
+	double closest = 1000;
+	double shadowValue = 0;
+	Vector<double, 3> returnNormal;
+	for (auto o : scene)
+	{
+		auto vec = o->getDistance(point);
+		auto distNormal = normalize(vec);
+		double distance = vec * distNormal;
+
+		if (distance < 1)
+		{
+			double comparisonSize = 1 - distance;
+
+			//double shadow = (-normal * distNormal) * comparisonSize;
+
+			double shadowProduct = -normal * distNormal;
+			double shadow = std::pow((1 - distance), 8) * (shadowProduct);
+
+			if (shadow > shadowValue)
+			{
+				//closest = shadow;
+				closest = distance;
+				shadowValue = shadow;
+				returnNormal = distNormal;
+			}
+		}
+	}
+	return { closest, returnNormal };
+}
+
 Bitmap<unsigned char> raytrace()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
-	bitmap.fill({ 100, 149, 237 });
+	bitmap.fill({ 255, 255, 255 });
 
 	TestPlane plane;
-	plane.color = { 240, 240, 240 };
+	plane.color = { 255, 255, 255 };
 
 	Sphere sphere;
 	sphere.color = { 200, 200, 255 };
 	sphere.size = 1;
-	sphere.pos = { 0, 1, 7 };
+	sphere.pos = { 0.15, 1, 6.5 };
 
 	Sphere sphere2;
 	sphere2.color = { 255, 200, 200 };
 	sphere2.size = 0.75;
-	sphere2.pos = { -1, 0.75, 5.5 };
+	sphere2.pos = { -1, 0.75, 5.1 };
 
 	Sphere sphere3;
 	sphere3.color = { 200, 255, 200 };
 	sphere3.size = 0.5;
-	sphere3.pos = { 0.5, 0.5, 3 };
+	sphere3.pos = { 0.5, 0.5, 5 };
 
 	std::vector<RayTraceObject*> scene;
 	scene.push_back(&plane);
@@ -134,23 +194,36 @@ Bitmap<unsigned char> raytrace()
 	scene.push_back(&sphere2);
 	scene.push_back(&sphere3);
 
-	Vector<double, 3> origin = { 0, 1, -1 };
+	Vector<double, 3> origin = { 0, 3, -1 };
 
 	for (int i = 0; i < 1000; i++)
 	{
 		for (int j = 0; j < 1000; j++)
 		{
-			Vector<double, 3> dest = { -i / 1000.0 + 0.5, 1 - j / 1000.0 + 0.5, 0 };
+			Vector<double, 3> dest = { -i / 1000.0 + 0.5, 2.7 - j / 1000.0 + 0.5, 0 };
 			Vector<double, 3> direction = dest - origin;
 
 			auto[distance, object, normal, pos] = tracePlus(origin, direction, scene);
 
 			if (object != nullptr)
 			{
-				double shadowVolumeSize = 1.5;
-				double dist = (getAOLine(shadowVolumeSize, normal, pos, scene) / shadowVolumeSize);
-				double shadow = (1 - std::pow(1 - dist, 8)) * 1 + 0.0;
-				Vector<double, 3> lightVec = { 0.5, -1.0, 0.5 };
+				// linien methode ----------------------------
+				//double shadowVolumeSize = 1.5;
+				//double dist = (getAOLine(shadowVolumeSize, normal, pos, scene) / shadowVolumeSize);
+				//double shadow = (1 - std::pow(1 - dist, 8)) * 1 + 0.0;
+				//--------------------------------------------
+
+				auto[aoDistance, aoNormal] = getMaxAO(scene, normal, pos);
+
+				double shadow = 1;
+
+				if (aoDistance <= 1)
+				{
+					double shadowProduct = -normal * aoNormal;
+					shadow = (1 - std::pow((1 - aoDistance), 8) * (shadowProduct)) * 0.9 + 0.1;
+				}
+
+				Vector<double, 3> lightVec = { 0.0, -1.0, 0.0 };
 				lightVec = normalize(lightVec);
 				double directLight = std::acos(normal * lightVec) / 3.14159265;
 				directLight *= 0.5;
@@ -159,9 +232,12 @@ Bitmap<unsigned char> raytrace()
 				bitmap(i, j, 0) = shadow * directLight * color(0);
 				bitmap(i, j, 1) = shadow * directLight * color(1);
 				bitmap(i, j, 2) = shadow * directLight * color(2);
-				//bitmap(i, j, 0) = color(0);
-				//bitmap(i, j, 1) = color(1);
-				//bitmap(i, j, 2) = color(2);
+				//bitmap(i, j, 0) = sphere3.getDistance(pos) * sphere3.getDistance(pos) * 10;
+				//bitmap(i, j, 1) = sphere3.getDistance(pos) * sphere3.getDistance(pos) * 10;
+				//bitmap(i, j, 2) = sphere3.getDistance(pos) * sphere3.getDistance(pos) * 10;
+				//bitmap(i, j, 0) = aoDistance * 50;
+				//bitmap(i, j, 1) = aoDistance * 50;
+				//bitmap(i, j, 2) = aoDistance * 50;
 				//bitmap(i, j, 0) *= shadow;
 				//bitmap(i, j, 1) *= shadow;
 				//bitmap(i, j, 2) *= shadow;
@@ -204,7 +280,7 @@ std::tuple<double, double, double> hsvToRgb(double h, double s, double v)
 	return {};
 }
 
-int main2()
+int main()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 	bitmap.fill({ 100, 149, 237 });
