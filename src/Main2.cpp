@@ -280,7 +280,7 @@ std::tuple<double, double, double> hsvToRgb(double h, double s, double v)
 	return {};
 }
 
-int main()
+int main1()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 	bitmap.fill({ 100, 149, 237 });
