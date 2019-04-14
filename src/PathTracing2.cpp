@@ -1,5 +1,6 @@
 #include "Matrix.h"
 #include "Bitmap.h"
+#include "Filters.h"
 
 #include <random>
 #include <thread>
@@ -204,9 +205,6 @@ namespace path2
 		Vector<double, 3> mirroredNormal = -normal - direction * (-normal * direction) * 2;
 		Vector<double, 3> mirrored = tracePixel(posObject, mirroredNormal, scene, count + 1, countMax);
 		
-		//if (helpVector == Vector<double, 3>{0.0, 0.0, 0.0})
-		//	mirrored = normalObject;
-		
 		Vector<double, 3> color = {
 			object->color(0) * previousColor(0) * (1.0 - object->transmission) + mirrored(0) * object->transmission,
 			object->color(1) * previousColor(1) * (1.0 - object->transmission) + mirrored(1) * object->transmission,
@@ -215,16 +213,33 @@ namespace path2
 		
 		return color;
 	}
+
+	Vector<double, 3> traceNormal(Vector<double, 3> position, Vector<double, 3> normal, std::vector<RayTraceObject*> scene)
+	{
+		auto [distance, object, normalObject, posObject] = tracePlus(position, normal, scene);
+
+		return normalObject;
+	}
+
+	double traceDistance(Vector<double, 3> position, Vector<double, 3> normal, std::vector<RayTraceObject*> scene)
+	{
+		auto [distance, object, normalObject, posObject] = tracePlus(position, normal, scene);
+
+		return distance;
+	}
 	
-	void run(unsigned int from, unsigned int to, Vector<double, 3> origin, Bitmap<unsigned char>* bitmap, std::vector<RayTraceObject*> scene)
+	void run(unsigned int from, unsigned int to, Vector<double, 3> origin, Bitmap<unsigned char>* bitmap, Bitmap<unsigned char>* normalMap, Bitmap<unsigned char>* distanceMap, std::vector<RayTraceObject*> scene)
 	{
 		for (int i = from; i < to; i++)
 		{
 			for (int j = 0; j < 1000; j++)
 			{
 				Vector<double, 3> color = { 0, 0, 0 };
-				const int countX = 2;
-				const int countY = 2;
+				const int countX = 4;
+				const int countY = 4;
+
+				Vector<double, 3> normal;
+				double distance;
 
 				for (int k = 0; k < countX; k++)
 				{
@@ -232,6 +247,8 @@ namespace path2
 					{
 						Vector<double, 3> dest = { -(i + ((double)k / (double)countX) - 0.5) / 1000.0 + 0.5, 2.7 - (j + ((double)l / (double)countY) - 0.5) / 1000.0 + 0.5, 0 };
 						color += tracePixel(origin, normalize(dest - origin), scene, 0, 4);
+						normal = traceNormal(origin, normalize(dest - origin), scene);
+						distance = traceDistance(origin, normalize(dest - origin), scene);
 					}
 				}
 
@@ -240,6 +257,12 @@ namespace path2
 				(*bitmap)(i, j, 0) = std::min(color(0) * 255, 255.0);
 				(*bitmap)(i, j, 1) = std::min(color(1) * 255, 255.0);
 				(*bitmap)(i, j, 2) = std::min(color(2) * 255, 255.0);
+				(*normalMap)(i, j, 0) = (normal(0) + 1.0) * 128;
+				(*normalMap)(i, j, 1) = (normal(1) + 1.0) * 128;
+				(*normalMap)(i, j, 2) = (normal(2) + 1.0) * 128;
+				(*distanceMap)(i, j, 0) = distance * 8;
+				(*distanceMap)(i, j, 1) = distance * 8;
+				(*distanceMap)(i, j, 2) = distance * 8;
 
 			}
 		}
@@ -248,6 +271,8 @@ namespace path2
 	Bitmap<unsigned char> raytrace()
 	{
 		Bitmap<unsigned char> bitmap(1000, 1000, 3);
+		Bitmap<unsigned char> normalMap(1000, 1000, 3);
+		Bitmap<unsigned char> distanceMap(1000, 1000, 3);
 		bitmap.fill({ 0, 0, 0 });
 
 		TestPlane plane;
@@ -282,14 +307,17 @@ namespace path2
 		std::vector<std::thread> threads;
 		for (int i = 0; i < 8; i++)
 		{
-			threads.push_back(std::thread(run, i * 125, i * 125 + 125, origin, &bitmap, scene));
+			threads.push_back(std::thread(run, i * 125, i * 125 + 125, origin, &bitmap, &normalMap, &distanceMap, scene));
 		}
 		for (int i = 0; i < 8; i++)
 		{
 			threads[i].join();
 		}
 
-		return bitmap;
+		Denoiser denoiser(16, 0.01);
+
+		Bitmap<unsigned char> ret = denoiser.denoise(bitmap, normalMap, distanceMap);
+		return ret;
 	}
 }
 

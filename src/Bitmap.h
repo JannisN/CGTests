@@ -6,6 +6,7 @@
 #include <vector>
 #include <tuple>
 #include <fstream>
+#include <iostream>
 
 namespace cg
 {

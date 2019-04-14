@@ -15,6 +15,8 @@ namespace cg
 
 	std::vector<std::string> split(const std::string& s, char delim);
 
+	std::tuple<double, double, double> hsvToRgb(double h, double s, double v);
+
 	// impl ---------------------------------
 
 	template<class T>
