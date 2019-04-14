@@ -114,6 +114,7 @@ namespace path
 		return v1(0) * v2(0) + v1(1) * v2(1) + v1(2) * v2(2);
 	}
 
+	// 
 	Vector<double, 3> randomHemisphere(Vector<double, 3> normal)
 	{
 		const double pi = 3.141592653589793;
@@ -136,7 +137,7 @@ namespace path
 		//else
 
 		Vector<double, 3> rand = { 2 * (random(generator) - 0.5), 2 * (random(generator) - 0.5), 2 * (random(generator) - 0.5) };
-		Vector<double, 3> vec = normalize(normal + rand);
+		Vector<double, 3> vec = normalize(normal + normalize(rand));
 
 		return vec;
 	}
