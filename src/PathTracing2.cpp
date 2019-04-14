@@ -6,7 +6,7 @@
 
 using namespace cg;
 
-namespace path
+namespace path2
 {
 	template <class T, unsigned int N>
 	Vector<T, N> normalize(Vector<T, N> vec)
@@ -28,7 +28,7 @@ namespace path
 	{
 	public:
 		virtual std::vector<std::tuple<double, RayTraceObject*, Vector<double, 3>>> getDistance(Vector<double, 3> origin, Vector<double, 3> direction) { return {}; };
-		Vector<unsigned char, 3> color;
+		Vector<double, 3> color;
 	};
 
 	class TestPlane : public RayTraceObject
@@ -111,10 +111,10 @@ namespace path
 
 	double dot(Vector<double, 3> v1, Vector<double, 3> v2)
 	{
-		return v1(0) * v2(0) + v1(1) * v2(1) + v1(2) * v2(2);
+		return v1(0)* v2(0) + v1(1) * v2(1) + v1(2) * v2(2);
 	}
 
-	// 
+	// funktioniert noch nicht richtig
 	Vector<double, 3> randomHemisphere(Vector<double, 3> normal)
 	{
 		const double pi = 3.141592653589793;
@@ -184,18 +184,42 @@ namespace path
 		return color;
 	}
 
+	Vector<double, 3> tracePixel(Vector<double, 3> position, Vector<double, 3> normal, std::vector<RayTraceObject*> scene, unsigned int count, unsigned int countMax)
+	{
+		if (count >= countMax)
+			return { 0.0, 0.0, 0.0 };
+
+		auto [distance, object, normalObject, posObject] = tracePlus(position, normal, scene);
+
+		if (object == nullptr)
+			return { 1.0, 1.0, 1.0 };
+		
+		Vector<double, 3> randomDir = randomHemisphere(normalObject);
+		Vector<double, 3> previousColor = tracePixel(posObject, randomDir, scene, count + 1, countMax);
+
+		return { object->color(0) * previousColor(0), object->color(1) * previousColor(1), object->color(2) * previousColor(2) };
+	}
+	
 	void run(unsigned int from, unsigned int to, Vector<double, 3> origin, Bitmap<unsigned char>* bitmap, std::vector<RayTraceObject*> scene)
 	{
 		for (int i = from; i < to; i++)
 		{
 			for (int j = 0; j < 1000; j++)
 			{
-				Vector<double, 3> dest = { -i / 1000.0 + 0.5, 2.7 - j / 1000.0 + 0.5, 0 };
-				auto color = getColor(origin, dest, scene);
+				Vector<double, 3> color = { 0, 0, 0 };
+				const int samples = 4;
 
-				(*bitmap)(i, j, 0) = color(0);
-				(*bitmap)(i, j, 1) = color(1);
-				(*bitmap)(i, j, 2) = color(2);
+				for (int k = 0; k < samples; k++)
+				{
+					Vector<double, 3> dest = { -i / 1000.0 + 0.5, 2.7 - j / 1000.0 + 0.5, 0 };
+					color += tracePixel(origin, normalize(dest - origin), scene, 0, 3);
+				}
+
+				color *= 1.0 / samples;
+
+				(*bitmap)(i, j, 0) = std::min(color(0) * 255, 255.0);
+				(*bitmap)(i, j, 1) = std::min(color(1) * 255, 255.0);
+				(*bitmap)(i, j, 2) = std::min(color(2) * 255, 255.0);
 
 			}
 		}
@@ -207,20 +231,20 @@ namespace path
 		bitmap.fill({ 0, 0, 0 });
 
 		TestPlane plane;
-		plane.color = { 255, 255, 255 };
+		plane.color = { 1, 1, 1 };
 
 		Sphere sphere;
-		sphere.color = { 200, 200, 255 };
+		sphere.color = { 0.8, 0.8, 1 };
 		sphere.size = 1;
 		sphere.pos = { 0.15, 1, 6.5 };
 
 		Sphere sphere2;
-		sphere2.color = { 255, 200, 200 };
+		sphere2.color = { 1, 0.8, 0.8 };
 		sphere2.size = 0.75;
 		sphere2.pos = { -1, 0.75, 5.1 };
 
 		Sphere sphere3;
-		sphere3.color = { 200, 255, 200 };
+		sphere3.color = { 0.8, 1, 0.8 };
 		sphere3.size = 0.5;
 		sphere3.pos = { 0.5, 0.5, 5 };
 
@@ -245,14 +269,14 @@ namespace path
 	}
 }
 
-int main4()
+int main()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 	bitmap.fill({ 100, 149, 237 });
 
-	bitmap = path::raytrace();
+	bitmap = path2::raytrace();
 	//bitmap.saveAsPPM("test.ppm");
-	bitmap.saveAsBMP("pathtrace.bmp");
+	bitmap.saveAsBMP("pathtrace2.bmp");
 
 	return 0;
 }
