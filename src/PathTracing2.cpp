@@ -29,6 +29,7 @@ namespace path2
 	public:
 		virtual std::vector<std::tuple<double, RayTraceObject*, Vector<double, 3>>> getDistance(Vector<double, 3> origin, Vector<double, 3> direction) { return {}; };
 		Vector<double, 3> color;
+		double transmission;
 	};
 
 	class TestPlane : public RayTraceObject
@@ -197,7 +198,22 @@ namespace path2
 		Vector<double, 3> randomDir = randomHemisphere(normalObject);
 		Vector<double, 3> previousColor = tracePixel(posObject, randomDir, scene, count + 1, countMax);
 
-		return { object->color(0) * previousColor(0), object->color(1) * previousColor(1), object->color(2) * previousColor(2) };
+		Vector<double, 3> helpVector = cross(normal, normalObject);
+		Vector<double, 3> direction = normalize(cross(normalObject, helpVector));
+		
+		Vector<double, 3> mirroredNormal = -normal - direction * (-normal * direction) * 2;
+		Vector<double, 3> mirrored = tracePixel(posObject, mirroredNormal, scene, count + 1, countMax);
+		
+		//if (helpVector == Vector<double, 3>{0.0, 0.0, 0.0})
+		//	mirrored = normalObject;
+		
+		Vector<double, 3> color = {
+			object->color(0) * previousColor(0) * (1.0 - object->transmission) + mirrored(0) * object->transmission,
+			object->color(1) * previousColor(1) * (1.0 - object->transmission) + mirrored(1) * object->transmission,
+			object->color(2) * previousColor(2) * (1.0 - object->transmission) + mirrored(2) * object->transmission
+		};
+		
+		return color;
 	}
 	
 	void run(unsigned int from, unsigned int to, Vector<double, 3> origin, Bitmap<unsigned char>* bitmap, std::vector<RayTraceObject*> scene)
@@ -207,15 +223,19 @@ namespace path2
 			for (int j = 0; j < 1000; j++)
 			{
 				Vector<double, 3> color = { 0, 0, 0 };
-				const int samples = 4;
+				const int countX = 2;
+				const int countY = 2;
 
-				for (int k = 0; k < samples; k++)
+				for (int k = 0; k < countX; k++)
 				{
-					Vector<double, 3> dest = { -i / 1000.0 + 0.5, 2.7 - j / 1000.0 + 0.5, 0 };
-					color += tracePixel(origin, normalize(dest - origin), scene, 0, 3);
+					for (int l = 0; l < countY; l++)
+					{
+						Vector<double, 3> dest = { -(i + ((double)k / (double)countX) - 0.5) / 1000.0 + 0.5, 2.7 - (j + ((double)l / (double)countY) - 0.5) / 1000.0 + 0.5, 0 };
+						color += tracePixel(origin, normalize(dest - origin), scene, 0, 4);
+					}
 				}
 
-				color *= 1.0 / samples;
+				color *= 1.0 / (countX * countY);
 
 				(*bitmap)(i, j, 0) = std::min(color(0) * 255, 255.0);
 				(*bitmap)(i, j, 1) = std::min(color(1) * 255, 255.0);
@@ -232,21 +252,25 @@ namespace path2
 
 		TestPlane plane;
 		plane.color = { 1, 1, 1 };
+		plane.transmission = 0.0;
 
 		Sphere sphere;
 		sphere.color = { 0.8, 0.8, 1 };
 		sphere.size = 1;
 		sphere.pos = { 0.15, 1, 6.5 };
+		sphere.transmission = 0.4;
 
 		Sphere sphere2;
 		sphere2.color = { 1, 0.8, 0.8 };
 		sphere2.size = 0.75;
 		sphere2.pos = { -1, 0.75, 5.1 };
+		sphere2.transmission = 0.0;
 
 		Sphere sphere3;
 		sphere3.color = { 0.8, 1, 0.8 };
 		sphere3.size = 0.5;
 		sphere3.pos = { 0.5, 0.5, 5 };
+		sphere3.transmission = 0.0;
 
 		std::vector<RayTraceObject*> scene;
 		scene.push_back(&plane);
