@@ -321,7 +321,7 @@ namespace path2
 	}
 }
 
-int main()
+int main3()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 	bitmap.fill({ 100, 149, 237 });
