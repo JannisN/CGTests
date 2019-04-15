@@ -57,7 +57,7 @@ namespace texture2
 	}
 }
 
-int main()
+int main6()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 

@@ -1,6 +1,7 @@
 #include "Utils.h"
 
 #include <sstream>
+#include <cmath>
 
 namespace cg
 {
