@@ -35,7 +35,7 @@ double sineSum2(double value)
 	return std::cos(value * 3 + 14) * 0.5 + 0.5;
 }
 
-int main()
+int main5()
 {
 	Bitmap<unsigned char> bitmap(1000, 1000, 3);
 
