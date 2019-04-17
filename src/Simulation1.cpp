@@ -92,6 +92,11 @@ int main()
 		int width, height;
 		glfwGetWindowSize(window, &width, &height);
 
+#ifdef __APPLE__
+        width *= 2;
+        height *= 2;
+#endif
+        
 		glViewport(0, 0, width, height);
 		double fract = static_cast<double>(width) / static_cast<double>(height);
 
